@@ -40,7 +40,7 @@ const verifyToken = (req, res, next) => {
   jwt.verify(token, JWT_SECRET, (err, decoded) => {
     if (err) {
       console.error('Token verification failed:', err); // Log the error
-      return res.status(401).json({ message: "Unauthorized" });
+      return res.status(401).json({ message: "Unauthorized", error: err.message });
     }
     console.log('Decoded user:', decoded); // Log the decoded user info
     req.user = decoded;
@@ -68,10 +68,10 @@ app.post("/signup", async (req, res) => {
 
     const [result] = await pool.execute(query, [f_name, l_name, username, email, hash, role]);
 
-    res.status(200).json({ message: "User registered successfully", userId: result.insertId });
+    res.status(201).json({ message: "User registered successfully", userId: result.insertId });
   } catch (err) {
     console.error("Error registering user:", err);
-    res.status(500).json({ message: "Database error", error: err });
+    res.status(500).json({ message: "Database error", error: err.message });
   }
 });
 
@@ -86,16 +86,16 @@ app.post("/login", async (req, res) => {
 
     const match = await bcrypt.compare(password, data[0].password);
     if (match) {
-      const { id, f_name, l_name, username, email, role } = data[0];
+      const { id, f_name, l_name, username, role } = data[0];
       const token = jwt.sign({ id, f_name, l_name, username, email, role }, JWT_SECRET, { expiresIn: "1h" });
-      
+
       res.status(200).json({ message: "Login successful", token, role });
     } else {
       res.status(401).json({ message: "Invalid email or password" });
     }
   } catch (err) {
     console.error("Login error:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 });
 
@@ -115,7 +115,7 @@ app.post("/api/update-location", verifyToken, async (req, res) => {
     }
   } catch (err) {
     console.error("Error updating location:", err);
-    res.status(500).json({ message: "Database error", error: err });
+    res.status(500).json({ message: "Database error", error: err.message });
   }
 });
 
@@ -127,7 +127,52 @@ app.get("/api/services", async (req, res) => {
     res.status(200).json(data);
   } catch (err) {
     console.error("Database error:", err);
-    res.status(500).json({ message: "Database error", error: err });
+    res.status(500).json({ message: "Database error", error: err.message });
+  }
+});
+
+// Fetch services by specific provider ID
+app.get('/api/providers/:providerId/services', async (req, res) => {
+  const providerId = req.params.providerId;
+
+  const query = `
+    SELECT s.id, s.name 
+    FROM provider_services ps
+    JOIN services s ON ps.service_id = s.id
+    WHERE ps.provider_id = ?
+  `;
+
+  try {
+    const [data] = await pool.execute(query, [providerId]);
+    if (data.length > 0) {
+      res.status(200).json(data);
+    } else {
+      res.status(404).json({ message: "No services found for this provider" });
+    }
+  } catch (err) {
+    console.error('Database error:', err);
+    res.status(500).json({ message: 'Database error', error: err.message });
+  }
+});
+
+// Endpoint to create a new service request
+app.post('/api/requests', verifyToken, async (req, res) => {
+  const { providerId, serviceId } = req.body;
+  const userId = req.user.id; // Get the ID of the user making the request
+
+  // Validate input
+  if (!providerId || !serviceId) {
+    return res.status(400).json({ message: "Provider ID and Service ID are required" });
+  }
+
+  const query = `INSERT INTO requests (user_id, provider_id, service_id) VALUES (?, ?, ?)`;
+
+  try {
+    const [result] = await pool.execute(query, [userId, providerId, serviceId]);
+    res.status(201).json({ message: "Request created successfully", requestId: result.insertId });
+  } catch (err) {
+    console.error("Error creating request:", err);
+    res.status(500).json({ message: "Database error", error: err.message });
   }
 });
 
@@ -157,77 +202,9 @@ app.post("/api/provider-services", verifyToken, async (req, res) => {
   } catch (err) {
     console.error("Error updating services:", err);
     await pool.rollback();
-    res.status(500).json({ message: "Error updating services", error: err });
+    res.status(500).json({ message: "Error updating services", error: err.message });
   }
 });
-
-// Endpoint to get services offered by a specific provider
-app.get('/api/provider-services', verifyToken, async (req, res) => {
-  const providerId = req.user.id;
-
-  const query = `
-    SELECT s.id, s.name 
-    FROM provider_services ps
-    JOIN services s ON ps.service_id = s.id
-    WHERE ps.provider_id = ?
-  `;
-
-  try {
-    const [data] = await pool.execute(query, [providerId]);
-    res.status(200).json(data);
-  } catch (err) {
-    console.error('Database error:', err);
-    res.status(500).json({ message: 'Database error', error: err });
-  }
-});
-
-// Endpoint to get provider ratings
-app.get('/api/provider-ratings/:providerId', async (req, res) => {
-  const providerId = req.params.providerId;
-
-  const query = `
-    SELECT AVG(rating) as average_rating
-    FROM ratings
-    WHERE provider_id = ?
-  `;
-
-  try {
-    const [data] = await pool.execute(query, [providerId]);
-
-    if (data.length > 0) {
-      res.status(200).json({ average_rating: data[0].average_rating || 0 });
-    } else {
-      res.status(404).json({ message: "Provider not found or no ratings available" });
-    }
-  } catch (err) {
-    console.error('Database error:', err);
-    res.status(500).json({ message: 'Database error', error: err });
-  }
-});
-
-// Endpoint to fetch all providers with their services and average ratings
-app.get('/api/providers', async (req, res) => {
-  const query = `
-    SELECT u.id, u.f_name, u.l_name, u.username, u.email, 
-           GROUP_CONCAT(DISTINCT ps.service_id) as service_ids,
-           AVG(r.rating) as average_rating
-    FROM users u
-    LEFT JOIN provider_services ps ON u.id = ps.provider_id
-    LEFT JOIN ratings r ON u.id = r.provider_id
-    WHERE u.role = 'provider'
-    GROUP BY u.id
-  `;
-
-  try {
-    const [data] = await pool.execute(query);
-    res.status(200).json(data);
-  } catch (err) {
-    console.error('Database error:', err);
-    res.status(500).json({ message: 'Database error', error: err });
-  }
-});
-
-// Endpoint to fetch providers by services
 app.post("/api/providers-by-service", async (req, res) => {
   const { serviceIds } = req.body;
 
@@ -252,10 +229,29 @@ app.post("/api/providers-by-service", async (req, res) => {
     res.status(500).json({ message: "Database error", error: err });
   }
 });
-// Fetch provider details by ID
-app.get('/api/providers/:providerId', async (req, res) => {
-  const providerId = req.params.providerId;
 
+// Endpoint to get services offered by a specific provider
+app.get('/api/provider-services', verifyToken, async (req, res) => {
+  const providerId = req.user.id;
+
+  const query = `
+    SELECT s.id, s.name 
+    FROM provider_services ps
+    JOIN services s ON ps.service_id = s.id
+    WHERE ps.provider_id = ?
+  `;
+
+  try {
+    const [data] = await pool.execute(query, [providerId]);
+    res.status(200).json(data);
+  } catch (err) {
+    console.error('Database error:', err);
+    res.status(500).json({ message: 'Database error', error: err.message });
+  }
+});
+
+// Endpoint to fetch all providers with their services and average ratings
+app.get('/api/providers', async (req, res) => {
   const query = `
     SELECT u.id, u.f_name, u.l_name, u.username, u.email, 
            GROUP_CONCAT(DISTINCT ps.service_id) as service_ids,
@@ -263,66 +259,18 @@ app.get('/api/providers/:providerId', async (req, res) => {
     FROM users u
     LEFT JOIN provider_services ps ON u.id = ps.provider_id
     LEFT JOIN ratings r ON u.id = r.provider_id
-    WHERE u.id = ? AND u.role = 'provider'
+    WHERE u.role = 'provider'
     GROUP BY u.id
   `;
 
   try {
-    const [data] = await pool.execute(query, [providerId]);
-    if (data.length > 0) {
-      res.status(200).json(data[0]); // Send the first (and only) provider data
-    } else {
-      res.status(404).json({ message: "Provider not found" });
-    }
+    const [data] = await pool.execute(query);
+    res.status(200).json(data);
   } catch (err) {
     console.error('Database error:', err);
-    res.status(500).json({ message: 'Database error', error: err });
+    res.status(500).json({ message: 'Database error', error: err.message });
   }
 });
-
-// Endpoint to get provider ratings
-app.get('/api/provider-ratings/:providerId', async (req, res) => {
-  const providerId = req.params.providerId;
-
-  const query = `
-    SELECT AVG(rating) as average_rating
-    FROM ratings
-    WHERE provider_id = ?
-  `;
-
-  try {
-    const [data] = await pool.execute(query, [providerId]);
-
-    if (data.length > 0) {
-      res.status(200).json({ average_rating: data[0].average_rating || 0 });
-    } else {
-      res.status(404).json({ message: "Provider not found or no ratings available" });
-    }
-  } catch (err) {
-    console.error('Database error:', err);
-    res.status(500).json({ message: 'Database error', error: err });
-  }
-});
-
-// Rate a provider
-app.post('/api/providers/:providerId/rate', async (req, res) => {
-  const providerId = req.params.providerId;
-  const { rating } = req.body;
-
-  if (rating < 1 || rating > 5) {
-    return res.status(400).json({ message: "Rating must be between 1 and 5." });
-  }
-
-  const insertQuery = "INSERT INTO ratings (provider_id, rating) VALUES (?, ?)";
-  try {
-    await pool.execute(insertQuery, [providerId, rating]);
-    res.status(200).json({ message: "Rating submitted successfully." });
-  } catch (err) {
-    console.error('Database error:', err);
-    res.status(500).json({ message: 'Database error', error: err });
-  }
-});
-
 
 // Start the server
 const PORT = process.env.PORT || 8081;

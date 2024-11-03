@@ -17,44 +17,9 @@ const ProviderTable = ({ providers = [], setProviderRatings, selectedServices })
     const navigate = useNavigate();
     const [loadingRequest, setLoadingRequest] = useState({}); // Track loading state for service requests per provider
 
-    const handleViewProvider = (providerId) => {
-        navigate(`/provider-profile/${providerId}`);
+    const handleViewProvider = (provider) => {
+        navigate(`/provider-profile/${provider.id}`, { state: { provider } });
     };
-
-    const handleRequestService = async (providerId) => {
-        setLoadingRequest((prev) => ({ ...prev, [providerId]: true }));
-        try {
-            // Ensure there's a selected service for the provider
-            if (!selectedServices || selectedServices.length === 0) {
-                alert("Please select a service before requesting.");
-                setLoadingRequest((prev) => ({ ...prev, [providerId]: false }));
-                return;
-            }
-
-            const serviceId = selectedServices[0]; // Assuming the first selected service is used for the request
-
-            const response = await fetch(`http://localhost:8081/api/service-requests`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                },
-                body: JSON.stringify({ providerId, serviceId }),
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                alert(`Service requested successfully: ${data.message}`);
-            } else {
-                alert("Failed to request service. Please try again.");
-            }
-        } catch (error) {
-            console.error('Error requesting service:', error);
-        } finally {
-            setLoadingRequest((prev) => ({ ...prev, [providerId]: false }));
-        }
-    };
-
     const fetchProviderRatings = async (providerIds) => {
         try {
             const ratings = await Promise.all(
@@ -78,18 +43,10 @@ const ProviderTable = ({ providers = [], setProviderRatings, selectedServices })
     };
 
     useEffect(() => {
-        const fetchProviderRatingsAndServices = async (providerIds) => {
-            try {
-                await fetchProviderRatings(providerIds);
-            } catch (error) {
-                console.error('Error in fetching ratings:', error);
-            }
-        };
-
         if (providers.length > 0) {
-            fetchProviderRatingsAndServices(providers.map((provider) => provider.id));
+            fetchProviderRatings(providers.map((provider) => provider.id));
         }
-    }, [providers, setProviderRatings]);
+    }, [providers]);
 
     return (
         <TableContainer component={Paper}>
@@ -99,6 +56,7 @@ const ProviderTable = ({ providers = [], setProviderRatings, selectedServices })
                         <TableCell>Provider Name</TableCell>
                         <TableCell>Rating</TableCell>
                         <TableCell>Actions</TableCell>
+                        <TableCell>Location</TableCell>
                     </TableRow>
                 </TableHead>
                 <TableBody>
@@ -112,19 +70,16 @@ const ProviderTable = ({ providers = [], setProviderRatings, selectedServices })
                                 <Button
                                     variant="contained"
                                     color="primary"
-                                    onClick={() => handleViewProvider(provider.id)}
+                                    onClick={() => handleViewProvider(provider)}
                                     sx={{ marginRight: 1 }}
                                 >
                                     View Profile
                                 </Button>
-                                <Button
-                                    variant="contained"
-                                    color="secondary"
-                                    onClick={() => handleRequestService(provider.id)}
-                                    disabled={loadingRequest[provider.id]}
-                                >
-                                    {loadingRequest[provider.id] ? <CircularProgress size={24} /> : 'Request Service'}
-                                </Button>
+                               
+                            </TableCell>
+                            <TableCell>
+                                
+                               
                             </TableCell>
                         </TableRow>
                     ))}

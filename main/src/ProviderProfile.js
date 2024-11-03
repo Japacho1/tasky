@@ -1,57 +1,99 @@
-import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom"; // Import useParams
-import Services from "./Services";
-import Rating from "./Rating";
+import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 
 const ProviderProfile = () => {
-  const { id: providerId } = useParams(); // Extract provider ID from URL params
-  const [provider, setProvider] = useState(null);
-  const [averageRating, setAverageRating] = useState(0);
-  const [error, setError] = useState("");
+    const location = useLocation();
+    const provider = location.state?.provider;
+    const [services, setServices] = useState([]); // State to hold services
+    const [loading, setLoading] = useState(true); // State to manage loading
+    const [error, setError] = useState(null); // State to hold error messages
 
-  // Fetch provider details
-  const fetchProviderDetails = async () => {
-    try {
-      const response = await fetch(`http://localhost:8081/api/providers/${providerId}`);
-      if (!response.ok) throw new Error(`Error fetching provider details: ${response.statusText}`);
-      const data = await response.json();
-      setProvider(data);
-      fetchAverageRating(providerId);
-    } catch (err) {
-      setError(err.message);
+    useEffect(() => {
+        const fetchServices = async () => {
+            if (provider) {
+                try {
+                    const response = await fetch(`http://localhost:8081/api/providers/${provider.id}/services`, {
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        },
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        setServices(data); // Set the services in state
+                    } else {
+                        console.error('Failed to fetch services');
+                        setError('Failed to fetch services');
+                    }
+                } catch (error) {
+                    console.error('Error fetching services:', error);
+                    setError('Error fetching services');
+                } finally {
+                    setLoading(false); // Set loading to false after fetch
+                }
+            }
+        };
+
+        fetchServices(); // Call the function to fetch services
+    }, [provider]);
+
+    // Function to handle making a request to the provider
+    const handleMakeRequest = async (serviceId) => {
+        try {
+            const response = await fetch(`http://localhost:8081/api/requests`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ serviceId, providerId: provider.id }), // Pass service and provider ID
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                alert(`Request sent successfully: ${result.message}`);
+            } else {
+                const errorData = await response.json();
+                alert(`Failed to send request: ${errorData.message || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('Error sending request:', error);
+            alert('Error sending request');
+        }
+    };
+
+    if (loading) {
+        return <div>Loading...</div>;
     }
-  };
 
-  // Fetch average rating
-  const fetchAverageRating = async (id) => {
-    try {
-      const response = await fetch(`http://localhost:8081/api/provider-ratings/${id}`);
-      if (!response.ok) throw new Error(`Error fetching average rating: ${response.statusText}`);
-      const data = await response.json();
-      setAverageRating(data.average_rating);
-    } catch (err) {
-      setError(err.message);
+    if (!provider) {
+        return <div>No provider details available</div>;
     }
-  };
 
-  useEffect(() => {
-    fetchProviderDetails();
-  }, [providerId]); // Use providerId as a dependency
-
-  if (error) return <div>Error: {error}</div>;
-
-  if (!provider) return <div>Loading provider details...</div>;
-
-  return (
-    <div>
-      <h2>{provider.username}'s Profile</h2>
-      <p>Name: {provider.f_name} {provider.l_name}</p>
-      <p>Email: {provider.email}</p>
-      <p>Average Rating: {averageRating.toFixed(1)}</p>
-      <Services providerId={provider.id} />
-      <Rating providerId={provider.id} />
-    </div>
-  );
+    return (
+        <div>
+            <h2>{provider.username}'s Profile</h2>
+            <p>Name: {provider.f_name} {provider.l_name}</p>
+            <p>Email: {provider.email}</p>
+            <p>Average Rating: {provider.rating ? provider.rating.toFixed(1) : "N/A"}</p>
+            <h3>Services Offered:</h3>
+            {error && <p style={{ color: 'red' }}>{error}</p>}
+            {services.length > 0 ? (
+                <ul>
+                    {services.map((service) => (
+                        <li key={service.id}>
+                            {service.name} 
+                            <button onClick={() => handleMakeRequest(service.id)}>Make Request</button>
+                        </li>
+                    ))}
+                </ul>
+            ) : (
+                <p>No services available</p>
+                
+            )}
+            
+        </div>
+    );
 };
 
 export default ProviderProfile;

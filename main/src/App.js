@@ -1,6 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { Container } from '@mui/material';
+
+// Import components (ensure they match the export type in each component file)
 import Home from './Home';
 import Login from './Login';
 import Signup from './Signup';
