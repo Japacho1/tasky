@@ -15,8 +15,8 @@ const Homepage = () => {
     const [user, setUser] = useState(null);
     const [providers, setProviders] = useState([]);
     const [providerRatings, setProviderRatings] = useState({});
-    const [services, setServices] = useState([]); // State for all available services
-    const [selectedServices, setSelectedServices] = useState([]); // State for selected services
+    const [services, setServices] = useState([]);
+    const [selectedServices, setSelectedServices] = useState([]);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -48,22 +48,21 @@ const Homepage = () => {
             }
         };
 
-        fetchServices(); // Fetch available services on initial load
+        fetchServices();
     }, []);
 
     const handleServiceChange = (serviceId) => {
         setSelectedServices((prevSelected) =>
             prevSelected.includes(serviceId)
-                ? prevSelected.filter((id) => id !== serviceId) // Remove if already selected
-                : [...prevSelected, serviceId] // Add if not selected
+                ? prevSelected.filter((id) => id !== serviceId)
+                : [...prevSelected, serviceId]
         );
     };
 
-    // Function to fetch providers based on selected services
     const fetchProviders = async () => {
         if (selectedServices.length === 0) {
             console.warn('No services selected to fetch providers.');
-            return; // Don't fetch if no service is selected
+            return;
         }
     
         try {
@@ -76,13 +75,13 @@ const Homepage = () => {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('token')}`,
                 },
-                body: JSON.stringify({ serviceIds: selectedServices }), // Ensure sending an array
+                body: JSON.stringify({ serviceIds: selectedServices }),
             });
     
             if (response.ok) {
                 const providersData = await response.json();
                 console.log('Providers:', providersData);
-                setProviders(providersData); // Set the providers state
+                setProviders(providersData);
             } else {
                 throw new Error(`Failed to fetch providers. Server responded with status: ${response.status}`);
             }
@@ -90,8 +89,11 @@ const Homepage = () => {
             console.error("Error fetching providers:", error);
         }
     };
-    
-    
+
+    // Function to navigate to My Requests
+    const handleMyRequests = () => {
+        navigate('/my_requests');
+    };
 
     return (
         <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" padding={3}>
@@ -113,7 +115,6 @@ const Homepage = () => {
                     ))}
                 </FormGroup>
                 <Box marginTop={2}>
-                    {/* Button to fetch providers based on selected services */}
                     <Button
                         variant="contained"
                         color="primary"
@@ -122,10 +123,17 @@ const Homepage = () => {
                     >
                         Fetch Providers
                     </Button>
+                    {/* Button to navigate to My Requests */}
+                    <Button
+                        variant="contained"
+                        color="secondary"
+                        onClick={handleMyRequests}
+                    >
+                        My Requests
+                    </Button>
                 </Box>
                 <Box>
                     <Typography variant="h6">Available Service Providers</Typography>
-                    {/* Pass the filtered providers to ProviderTable */}
                     <ProviderTable providers={providers} setProviderRatings={setProviderRatings} />
                 </Box>
             </Box>

@@ -11,7 +11,9 @@ import ProviderDashboard from './ProviderDashboard'; // Provider Dashboard
 import Map from './Map'; // Map Component
 import Navbar from './Navbar'; // Navigation bar component
 import ProviderProfile from './ProviderProfile'; // Provider Profile Component
-import NotFound from './NotFound'; // 404 Component (create this for better styling)
+import NotFound from './NotFound'; 
+import ProviderRequests from './ProviderRequests';
+import MyRequests from './MyRequests';
 
 function App() {
   return (
@@ -26,6 +28,8 @@ function App() {
           <Route path="/provider-dashboard" element={<ProviderDashboard />} />
           <Route path="/provider-profile/:providerId" element={<ProviderProfile />} /> {/* Use :providerId to match with useParams */}
           <Route path="/map" element={<Map />} />
+          <Route path= "/my-requests" element = {<ProviderRequests/>}/>
+          <Route path="/my_requests" element={<MyRequests />} />
           {/* 404 Page Not Found Route */}
           <Route path="*" element={<NotFound />} />
         </Routes>

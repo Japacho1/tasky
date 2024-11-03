@@ -176,6 +176,45 @@ app.post('/api/requests', verifyToken, async (req, res) => {
   }
 });
 
+// Endpoint to get requests for a specific provider
+app.get('/api/provider-requests', verifyToken, async (req, res) => {
+  const providerId = req.user.id; // Extract provider ID from the token
+
+  const query = `
+    SELECT r.id AS requestId, r.service_id AS serviceId, u.f_name AS requesterFirstName, u.l_name AS requesterLastName, u.email AS requesterEmail, s.name AS serviceName
+    FROM requests r
+    JOIN users u ON r.user_id = u.id
+    JOIN services s ON r.service_id = s.id
+    WHERE r.provider_id = ?
+  `;
+
+  try {
+    const [rows] = await pool.execute(query, [providerId]);
+    res.status(200).json(rows); // Send back the list of requests
+  } catch (err) {
+    console.error("Error retrieving provider requests:", err);
+    res.status(500).json({ message: "Database error", error: err.message });
+  }
+});
+
+
+
+
+
+// Decline (delete) request endpoint
+app.delete('/api/requests/:id', verifyToken, async (req, res) => {
+  const requestId = req.params.id;
+  
+  try {
+      await pool.execute(`DELETE FROM requests WHERE id = ?`, [requestId]);
+      res.status(200).json({ message: "Request declined successfully" });
+  } catch (error) {
+      console.error("Error deleting request:", error);
+      res.status(500).json({ message: "Database error", error: error.message });
+  }
+});
+
+
 // Endpoint to update provider services
 app.post("/api/provider-services", verifyToken, async (req, res) => {
   const providerId = req.user.id;
@@ -271,6 +310,44 @@ app.get('/api/providers', async (req, res) => {
     res.status(500).json({ message: 'Database error', error: err.message });
   }
 });
+// Accept request endpoint
+// Accept request endpoint
+app.post('/api/requests/accept/:id', verifyToken, async (req, res) => {
+  const requestId = req.params.id;
+
+  const query = `UPDATE requests SET status = 'accepted' WHERE id = ?`;
+
+  try {
+      const [result] = await pool.execute(query, [requestId]);
+      if (result.affectedRows === 0) {
+          return res.status(404).json({ message: "Request not found" });
+      }
+      res.status(200).json({ message: "Request accepted successfully" });
+  } catch (err) {
+      console.error("Error accepting request:", err);
+      res.status(500).json({ message: "Database error", error: err.message });
+  }
+});
+// MyRequests API endpoint
+app.get('/api/my-requests', verifyToken, async (req, res) => {
+  const userId = req.user.id; // Assuming user ID is stored in the token
+  const query = `
+      SELECT r.id, r.request_date, r.status, s.name AS serviceName
+      FROM requests r
+      JOIN services s ON r.service_id = s.id
+      WHERE r.user_id = ?
+  `;
+  
+  try {
+      const [requests] = await pool.execute(query, [userId]);
+      res.json(requests);
+  } catch (error) {
+      console.error('Error fetching requests:', error);
+      res.status(500).json({ message: 'Database error', error: error.message });
+  }
+});
+
+
 
 // Start the server
 const PORT = process.env.PORT || 8081;
