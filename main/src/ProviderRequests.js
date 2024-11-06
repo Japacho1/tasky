@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button } from '@mui/material';
-
+import { Box, AppBar, Toolbar, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button } from '@mui/material';
+import { Link } from "react-router-dom";
+import backgroundImage from "./images/duplo24.jpg";
 const ProviderRequests = () => {
     const [requests, setRequests] = useState([]);
 
@@ -29,6 +30,7 @@ const ProviderRequests = () => {
         fetchRequests();
     }, []);
 
+    
     // Function to handle accepting a request
     const handleAcceptRequest = async (requestId) => {
         try {

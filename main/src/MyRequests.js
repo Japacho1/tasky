@@ -1,4 +1,3 @@
-// MyRequests.js
 import React, { useEffect, useState } from 'react';
 import {
     Box,
@@ -10,6 +9,7 @@ import {
     TableHead,
     TableRow,
     Paper,
+    Button,
 } from '@mui/material';
 
 const MyRequests = () => {
@@ -21,6 +21,11 @@ const MyRequests = () => {
                 const response = await fetch('http://localhost:8081/api/my-requests', {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                 });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
                 const data = await response.json();
                 setRequests(data);
             } catch (error) {
@@ -31,8 +36,32 @@ const MyRequests = () => {
         fetchRequests();
     }, []);
 
+    // Function to handle request cancellation
+    const handleCancelRequest = async (requestId) => {
+        try {
+            const response = await fetch(`http://localhost:8081/api/requests/${requestId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                },
+            });
+
+            if (response.ok) {
+                // Remove the canceled request from the state
+                setRequests((prevRequests) => prevRequests.filter(request => request.id !== requestId));
+                console.log('Request canceled successfully');
+            } else {
+                const errorData = await response.json();
+                console.error('Error canceling request:', errorData);
+            }
+        } catch (error) {
+            console.error('Error canceling request:', error);
+        }
+    };
+
     return (
         <Box marginTop={4}>
+            
             <Typography variant="h6">My Service Requests</Typography>
             <TableContainer component={Paper} style={{ marginTop: '16px' }}>
                 <Table>
@@ -42,6 +71,7 @@ const MyRequests = () => {
                             <TableCell>Service Name</TableCell>
                             <TableCell>Status</TableCell>
                             <TableCell>Request Date</TableCell>
+                            <TableCell>Actions</TableCell> {/* New actions column */}
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -51,6 +81,15 @@ const MyRequests = () => {
                                 <TableCell>{request.serviceName}</TableCell>
                                 <TableCell>{request.status}</TableCell>
                                 <TableCell>{new Date(request.request_date).toLocaleDateString()}</TableCell>
+                                <TableCell>
+                                    <Button
+                                        variant="contained"
+                                        color="secondary"
+                                        onClick={() => handleCancelRequest(request.id)} // Call cancel handler
+                                    >
+                                        Cancel
+                                    </Button>
+                                </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>

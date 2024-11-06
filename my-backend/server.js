@@ -99,25 +99,58 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// Endpoint to update provider location
+
+// In your Express server
 app.post("/api/update-location", verifyToken, async (req, res) => {
-  const { latitude, longitude } = req.body;
+  const { latitude, longitude, current_town } = req.body; // Accept current_town from request
   const providerEmail = req.user.email;
 
-  const sql = "UPDATE users SET latitude = ?, longitude = ? WHERE email = ?";
   try {
-    const [result] = await pool.execute(sql, [latitude, longitude, providerEmail]);
-
-    if (result.affectedRows > 0) {
-      res.status(200).json({ message: "Location updated successfully" });
-    } else {
-      res.status(404).json({ message: "User not found" });
-    }
+      const sql = "UPDATE users SET latitude = ?, longitude = ?, current_town = ? WHERE email = ?";
+      const [result] = await pool.execute(sql, [latitude, longitude, current_town, providerEmail]);
+      
+      if (result.affectedRows > 0) {
+          res.status(200).json({ message: "Location updated successfully" });
+      } else {
+          res.status(404).json({ message: "User not found" });
+      }
   } catch (err) {
-    console.error("Error updating location:", err);
-    res.status(500).json({ message: "Database error", error: err.message });
+      console.error("Error during location update:", err.message);
+      res.status(500).json({ message: "Database error", error: err.message });
   }
 });
+
+
+
+app.post("/api/update-requester-location", verifyToken, async (req, res) => {
+  // Extract values and ensure they are not undefined
+  const latitude = req.body.latitude || null;
+  const longitude = req.body.longitude || null;
+  const current_town = req.body.city || null;
+  const requesterEmail = req.user.email;
+
+  // Log values for debugging
+  console.log("Latitude:", latitude);
+  console.log("Longitude:", longitude);
+  console.log("Current Town:", current_town);
+
+  try {
+      const sql = "UPDATE users SET latitude = ?, longitude = ?, current_town = ? WHERE email = ?";
+      const [result] = await pool.execute(sql, [latitude, longitude, current_town, requesterEmail]);
+
+      if (result.affectedRows > 0) {
+          res.status(200).json({ message: "Location updated successfully" });
+      } else {
+          res.status(404).json({ message: "User not found" });
+      }
+  } catch (err) {
+      console.error("Error during requester location update:", err.message);
+      res.status(500).json({ message: "Database error", error: err.message });
+  }
+});
+
+
+// Endpoint to update provider location
 
 // Endpoint to get all services for the dropdown
 app.get("/api/services", async (req, res) => {
@@ -245,29 +278,39 @@ app.post("/api/provider-services", verifyToken, async (req, res) => {
   }
 });
 app.post("/api/providers-by-service", async (req, res) => {
-  const { serviceIds } = req.body;
+  const { serviceIds, city } = req.body;
 
   if (!Array.isArray(serviceIds) || serviceIds.length === 0) {
     return res.status(400).json({ message: "Service IDs must be an array and cannot be empty" });
   }
 
+  if (!city) {
+    return res.status(400).json({ message: "City is required to filter providers by location" });
+  }
+
+  // Updated SQL query to include filtering by `current_town`
   const query = `
-    SELECT u.id, u.f_name, u.l_name, u.username, u.email, AVG(r.rating) as average_rating
+    SELECT u.id, u.f_name, u.l_name, u.username, u.email, u.current_town, AVG(r.rating) as average_rating
     FROM users u
     JOIN provider_services ps ON u.id = ps.provider_id
     LEFT JOIN ratings r ON u.id = r.provider_id
-    WHERE ps.service_id IN (${serviceIds.map(() => '?').join(', ')}) AND u.role = 'provider'
+    WHERE ps.service_id IN (${serviceIds.map(() => '?').join(', ')})
+      AND u.role = 'provider'
+      AND u.current_town = ?
     GROUP BY u.id
   `;
 
   try {
-    const [data] = await pool.execute(query, serviceIds);
+    // Adding the city to the parameters list for the query
+    const params = [...serviceIds, city];
+    const [data] = await pool.execute(query, params);
     res.status(200).json(data);
   } catch (err) {
     console.error("Database error:", err);
     res.status(500).json({ message: "Database error", error: err });
   }
 });
+
 
 // Endpoint to get services offered by a specific provider
 app.get('/api/provider-services', verifyToken, async (req, res) => {
@@ -346,6 +389,45 @@ app.get('/api/my-requests', verifyToken, async (req, res) => {
       res.status(500).json({ message: 'Database error', error: error.message });
   }
 });
+
+// Cancel request endpoint
+app.delete('/api/requests/:id', verifyToken, async (req, res) => {
+  const requestId = req.params.id;
+
+  const query = `DELETE FROM requests WHERE id = ? AND user_id = ?`; // Ensure that the request can only be deleted by its creator
+  const userId = req.user.id; // Get the ID of the user making the request
+
+  try {
+      const [result] = await pool.execute(query, [requestId, userId]);
+      if (result.affectedRows === 0) {
+          return res.status(404).json({ message: "Request not found or you do not have permission to delete this request." });
+      }
+      res.status(200).json({ message: "Request canceled successfully" });
+  } catch (err) {
+      console.error("Error canceling request:", err);
+      res.status(500).json({ message: "Database error", error: err.message });
+  }
+});
+
+// In your main Express file (e.g., app.js or server.js)
+app.get('/api/providers-with-location', async (req, res) => {
+  try {
+      const query = `
+          SELECT id, f_name, l_name, latitude, longitude, current_town 
+          FROM users 
+          WHERE role = 'provider';
+      `;
+      const [results] = await pool.execute(query);
+      res.json(results);
+  } catch (error) {
+      console.error('Error fetching providers with location:', error);
+      res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Endpoint to update provider location
+
+
 
 
 

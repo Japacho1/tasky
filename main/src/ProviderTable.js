@@ -9,17 +9,17 @@ import {
     Paper,
     Button,
     Rating,
-    CircularProgress,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 
-const ProviderTable = ({ providers = [], setProviderRatings, selectedServices }) => {
+const ProviderTable = ({ providers = [], setProviderRatings }) => {
     const navigate = useNavigate();
-    const [loadingRequest, setLoadingRequest] = useState({}); // Track loading state for service requests per provider
+    const [loadingRequest, setLoadingRequest] = useState({});
 
     const handleViewProvider = (provider) => {
         navigate(`/provider-profile/${provider.id}`, { state: { provider } });
     };
+
     const fetchProviderRatings = async (providerIds) => {
         try {
             const ratings = await Promise.all(
@@ -56,7 +56,7 @@ const ProviderTable = ({ providers = [], setProviderRatings, selectedServices })
                         <TableCell>Provider Name</TableCell>
                         <TableCell>Rating</TableCell>
                         <TableCell>Actions</TableCell>
-                        <TableCell>Location</TableCell>
+                        <TableCell>Current City</TableCell> {/* Renamed to Current City */}
                     </TableRow>
                 </TableHead>
                 <TableBody>
@@ -75,11 +75,9 @@ const ProviderTable = ({ providers = [], setProviderRatings, selectedServices })
                                 >
                                     View Profile
                                 </Button>
-                               
                             </TableCell>
                             <TableCell>
-                                
-                               
+                                {provider.current_city || provider.current_town || 'Location not available'} {/* Displaying current city or town */}
                             </TableCell>
                         </TableRow>
                     ))}
