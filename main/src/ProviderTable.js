@@ -12,23 +12,24 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 
-const ProviderTable = ({ providers = [], setProviderRatings }) => {
+const ProviderTable = ({ providers = [] }) => {
     const navigate = useNavigate();
-    const [loadingRequest, setLoadingRequest] = useState({});
+    const [providerRatings, setProviderRatings] = useState({}); // Store ratings here
 
     const handleViewProvider = (provider) => {
         navigate(`/provider-profile/${provider.id}`, { state: { provider } });
     };
 
+    // Fetch average rating for each provider
     const fetchProviderRatings = async (providerIds) => {
         try {
             const ratings = await Promise.all(
                 providerIds.map(async (id) => {
-                    const response = await fetch(`http://localhost:8081/api/provider-ratings/${id}`, {
+                    const response = await fetch(`http://localhost:8081/api/providers/${id}/average-rating`, {
                         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
                     });
                     const data = await response.json();
-                    return { providerId: id, rating: data.average_rating || 0 };
+                    return { providerId: id, rating: data.avgRating || 0 };
                 })
             );
 
@@ -36,6 +37,7 @@ const ProviderTable = ({ providers = [], setProviderRatings }) => {
                 acc[curr.providerId] = curr.rating;
                 return acc;
             }, {});
+
             setProviderRatings(ratingsMap);
         } catch (error) {
             console.error('Error fetching provider ratings:', error);
@@ -56,7 +58,7 @@ const ProviderTable = ({ providers = [], setProviderRatings }) => {
                         <TableCell>Provider Name</TableCell>
                         <TableCell>Rating</TableCell>
                         <TableCell>Actions</TableCell>
-                        <TableCell>Current City</TableCell> {/* Renamed to Current City */}
+                        <TableCell>Current City</TableCell>
                     </TableRow>
                 </TableHead>
                 <TableBody>
@@ -64,7 +66,11 @@ const ProviderTable = ({ providers = [], setProviderRatings }) => {
                         <TableRow key={provider.id}>
                             <TableCell>{`${provider.f_name} ${provider.l_name}`}</TableCell>
                             <TableCell>
-                                <Rating name={`rating-${provider.id}`} value={provider.rating || 0} readOnly />
+                                <Rating
+                                    name={`rating-${provider.id}`}
+                                    value={providerRatings[provider.id] || 0} // Use fetched rating
+                                    readOnly
+                                />
                             </TableCell>
                             <TableCell>
                                 <Button
@@ -77,7 +83,7 @@ const ProviderTable = ({ providers = [], setProviderRatings }) => {
                                 </Button>
                             </TableCell>
                             <TableCell>
-                                {provider.current_city || provider.current_town || 'Location not available'} {/* Displaying current city or town */}
+                                {provider.current_city || provider.current_town || 'Location not available'}
                             </TableCell>
                         </TableRow>
                     ))}

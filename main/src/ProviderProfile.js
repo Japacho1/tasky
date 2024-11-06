@@ -15,6 +15,7 @@ import {
 import { useLocation } from 'react-router-dom';
 import backgroundImage from "./images/duplo24.jpg";
 import Navbar from './Navbar';
+import Rating from '@mui/material/Rating';
 
 const ProviderProfile = () => {
     const location = useLocation();
@@ -22,6 +23,9 @@ const ProviderProfile = () => {
     const [services, setServices] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [selectedRating, setSelectedRating] = useState(0); // Store selected rating value
+    const [isSubmitting, setIsSubmitting] = useState(false); // To handle submission state
+    const [averageRating, setAverageRating] = useState(null); // To store the average rating
 
     const sectionStyle = {
         width: '100%',
@@ -55,7 +59,21 @@ const ProviderProfile = () => {
                 setLoading(false); // Handle case where provider is not available
             }
         };
+
+        const fetchAverageRating = async () => {
+            if (provider) {
+                try {
+                    const response = await fetch(`http://localhost:8081/api/providers/${provider.id}/average-rating`);
+                    const data = await response.json();
+                    setAverageRating(data.avgRating);
+                } catch (error) {
+                    console.error("Error fetching average rating:", error);
+                }
+            }
+        };
+
         fetchServices();
+        fetchAverageRating(); // Fetch average rating when the component mounts
     }, [provider]);
 
     const handleMakeRequest = async (serviceId) => {
@@ -81,6 +99,32 @@ const ProviderProfile = () => {
         }
     };
 
+    const handleRatingSubmit = async () => {
+        if (isSubmitting) return; // Prevent multiple submissions
+        setIsSubmitting(true);
+        try {
+            const response = await fetch(`http://localhost:8081/api/ratings`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ providerId: provider.id, rating: selectedRating }),
+            });
+
+            if (response.ok) {
+                alert("Rating submitted successfully");
+            } else {
+                const errorData = await response.json();
+                alert(`Error: ${errorData.message}`);
+            }
+        } catch (error) {
+            alert("Error submitting rating");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     if (loading) {
         return <CircularProgress sx={{ display: 'block', margin: 'auto', mt: 4 }} />;
     }
@@ -99,7 +143,11 @@ const ProviderProfile = () => {
                         <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#333' }}>{provider.username}'s Profile</Typography>
                         <Typography variant="subtitle1" sx={{ color: '#333' }}>{provider.f_name} {provider.l_name}</Typography>
                         <Typography variant="body1" sx={{ color: '#555' }}>Email: {provider.email}</Typography>
-                        <Typography variant="body2" sx={{ color: '#555' }}>Average Rating: {provider.rating ? provider.rating.toFixed(1) : "N/A"}</Typography>
+
+                        {/* Displaying Average Rating */}
+                        <Typography variant="body2" sx={{ color: '#555' }}>
+                            Average Rating: {averageRating !== null ? averageRating.toFixed(1) : "No ratings yet"}
+                        </Typography>
                     </Box>
                 </Box>
 
@@ -135,6 +183,26 @@ const ProviderProfile = () => {
                 ) : (
                     <Typography variant="body1" sx={{ color: '#555' }}>No services available</Typography>
                 )}
+
+                <Divider sx={{ my: 2 }} />
+
+                <Typography variant="h6" sx={{ color: '#333' }}>Rate this Provider:</Typography>
+                <Rating
+                    value={selectedRating}
+                    onChange={(event, newValue) => {
+                        setSelectedRating(newValue);
+                    }}
+                    max={5}
+                />
+                <Button
+                    variant="contained"
+                    color="secondary"
+                    onClick={handleRatingSubmit}
+                    disabled={isSubmitting || selectedRating === 0}
+                    sx={{ mt: 2 }}
+                >
+                    {isSubmitting ? "Submitting..." : "Submit Rating"}
+                </Button>
             </Box>
         </Box>
     );

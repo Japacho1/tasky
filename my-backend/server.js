@@ -277,6 +277,31 @@ app.post("/api/provider-services", verifyToken, async (req, res) => {
     res.status(500).json({ message: "Error updating services", error: err.message });
   }
 });
+
+
+// Assuming you're using Express and a MySQL database
+
+app.get('/api/providers/:id/average-rating',  async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Query to calculate the average rating for the provider
+    const [rows] = await pool.query(
+      `SELECT AVG(rating) AS avgRating FROM provider_ratings WHERE provider_id = ?`,
+      [id]
+    );
+
+    if (rows.length > 0 && rows[0].avgRating !== null) {
+      res.json({ avgRating: rows[0].avgRating });
+    } else {
+      res.json({ avgRating: null }); // No ratings available
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch average rating' });
+  }
+});
+
 app.post("/api/providers-by-service", async (req, res) => {
   const { serviceIds, city } = req.body;
 
@@ -310,6 +335,27 @@ app.post("/api/providers-by-service", async (req, res) => {
     res.status(500).json({ message: "Database error", error: err });
   }
 });
+
+
+// In your Express backend (e.g., ratingsController.js)
+app.post('/api/ratings', verifyToken, async (req, res) => {
+  const { providerId, rating } = req.body;
+  const requesterId = req.user.id; // Ensure this is coming from the authenticated user
+
+  try {
+      await pool.query(`INSERT INTO provider_ratings (provider_id, requester_id, rating) VALUES (?, ?, ?)`, 
+          [providerId, requesterId, rating]);
+      
+      // Update average rating in `users` table
+      const [average] = await pool.query(`SELECT AVG(rating) AS avgRating FROM provider_ratings WHERE provider_id = ?`, [providerId]);
+      await pool.query(`UPDATE users SET rating = ? WHERE id = ?`, [average.avgRating, providerId]);
+
+      res.json({ message: "Rating submitted successfully" });
+  } catch (error) {
+      res.status(500).json({ error: 'Error submitting rating' });
+  }
+});
+
 
 
 // Endpoint to get services offered by a specific provider
