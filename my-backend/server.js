@@ -302,6 +302,73 @@ app.get('/api/providers/:id/average-rating',  async (req, res) => {
   }
 });
 
+app.delete('/api/provider-services/:providerId/:serviceId', async (req, res) => {
+    const { providerId, serviceId } = req.params;
+    console.log('Deleting service for provider:', providerId, 'with service ID:', serviceId);  // Log the providerId and serviceId
+
+    // Ensure the providerId is not undefined or invalid before proceeding with the query
+    if (!providerId || !serviceId) {
+        return res.status(400).json({ error: 'Missing providerId or serviceId' });
+    }
+
+    try {
+        const [result] = await pool.query(
+            `DELETE FROM provider_services WHERE provider_id = ? AND service_id = ?`,
+            [providerId, serviceId]
+        );
+        if (result.affectedRows > 0) {
+            res.status(200).json({ message: 'Service removed successfully' });
+        } else {
+            res.status(404).json({ error: 'Service not found for this provider' });
+        }
+    } catch (error) {
+        console.error('Error removing service:', error);
+        res.status(500).json({ error: 'Failed to remove service' });
+    }
+});
+// Assuming you are using Express.js and MySQL for the database connection
+
+// Assuming you are using Express.js and MySQL for the database connection
+
+app.post('/api/provider-services-add', async (req, res) => {
+  // Extract provider_id and service_id from the request body
+  const { provider_id, service_id } = req.body;
+
+  // Check if provider_id and service_id are provided
+  if (!provider_id || !service_id) {
+      return res.status(400).json({ error: 'Provider ID and Service ID are required' });
+  }
+
+  try {
+      // Check if the service already exists for the provider
+      const [existingService] = await pool.query(
+          `SELECT * FROM provider_services WHERE provider_id = ? AND service_id = ?`,
+          [provider_id, service_id]
+      );
+
+      if (existingService.length > 0) {
+          return res.status(400).json({ error: 'Service already added to this provider' });
+      }
+
+      // Insert the new service into the provider_services table
+      const [result] = await pool.query(
+          `INSERT INTO provider_services (provider_id, service_id) VALUES (?, ?)`,
+          [provider_id, service_id]
+      );
+
+      if (result.affectedRows > 0) {
+          return res.status(201).json({ message: 'Service added successfully to provider' });
+      } else {
+          return res.status(500).json({ error: 'Failed to add service' });
+      }
+  } catch (error) {
+      console.error('Error adding service:', error);
+      return res.status(500).json({ error: 'Server error while adding service' });
+  }
+});
+
+
+
 app.post("/api/providers-by-service", async (req, res) => {
   const { serviceIds, city } = req.body;
 

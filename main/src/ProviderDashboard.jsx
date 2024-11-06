@@ -160,10 +160,12 @@ const ProviderDashboard = () => {
 
             <Box marginTop={2} width="80%">
                 <Typography variant="h6" sx={{ color: '#fff' }}>Manage Your Services</Typography>
+                {/* Pass providerId to the ServiceTable component */}
                 <ServiceTable
                     services={services}
                     selectedServices={selectedServices}
                     onUpdateServices={setSelectedServices} // Update function as a prop
+                    providerId={user ? user.id : null}  // Pass providerId here
                 />
             </Box>
 
