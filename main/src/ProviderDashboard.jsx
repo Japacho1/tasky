@@ -1,26 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Button, AppBar, Toolbar } from '@mui/material';
+import { Box, Typography, Button, AppBar, Toolbar, Container, Paper, Divider, List, ListItem, ListItemText } from '@mui/material';
 import { Link } from 'react-router-dom';
 import backgroundImage from './images/duplo24.jpg';
-import { jwtDecode } from 'jwt-decode';
+import {jwtDecode} from 'jwt-decode';
 import ServiceTable from './ServiceTable';
 import { useNavigate } from 'react-router-dom';
 
 const ProviderDashboard = () => {
     const [user, setUser] = useState(null);
-    const [location, setLocation] = useState(''); // State to store user's location coordinates
+    const [location, setLocation] = useState('');
     const [locationName, setLocationName] = useState('');
     const [services, setServices] = useState([]);
     const [selectedServices, setSelectedServices] = useState([]);
     const navigate = useNavigate();
 
     const sectionStyle = {
-        width: '100%',
-        height: '100vh',
-        backgroundImage: `url(${backgroundImage})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        color: '#fff',
+        display: 'flex',
+        minHeight: '100vh',
+        backgroundColor: '#e9ebee', // Facebook-like background color
+        color: '#333',
     };
 
     useEffect(() => {
@@ -29,7 +27,6 @@ const ProviderDashboard = () => {
             navigate('/login');
             return;
         }
-
         try {
             const decoded = jwtDecode(token);
             setUser(decoded);
@@ -47,22 +44,20 @@ const ProviderDashboard = () => {
                         const { latitude, longitude } = position.coords;
                         setLocation(`Latitude: ${latitude}, Longitude: ${longitude}`);
 
-                        // Fetch the location name using reverse geocoding
                         try {
                             const response = await fetch(
                                 `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
                             );
                             const data = await response.json();
-                            if (data && data.display_name) {
-                                setLocationName(data.display_name);
-                                // Update the location in the database
-                                await updateLocationInDatabase(latitude, longitude, data.address.city || 'Unknown City');
+                            if (data && data.address && data.address.city) {
+                                setLocationName(data.address.city); // Display only the city/town
+                                await updateLocationInDatabase(latitude, longitude, data.address.city);
                             } else {
-                                setLocationName('Unable to retrieve location name');
+                                setLocationName('City not found');
                             }
                         } catch (error) {
                             console.error('Error fetching location name:', error);
-                            setLocationName('Error retrieving location name');
+                            setLocationName('Error retrieving location');
                         }
                     },
                     (error) => {
@@ -133,51 +128,78 @@ const ProviderDashboard = () => {
     }, [user]);
 
     const goToNewPage = () => {
-        navigate('/my-requests'); // Replace with the path you want to navigate to
+        navigate('/my-requests');
     };
 
     return (
-        <Box display="flex" flexDirection="column" justifyContent="center" padding={3} style={sectionStyle}>
-            <AppBar position="static" sx={{ backgroundColor: '#2E3B55' }}>
-                <Toolbar>
-                    <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-                        Tasky
-                    </Typography>
-                    <Button color="inherit" component={Link} to="/about">About Us</Button>
-                    <Button color="inherit" component={Link} to="/login">Login</Button>
-                    <Button color="inherit" component={Link} to="/signup">Sign Up</Button>
-                </Toolbar>
-            </AppBar>
-            
-            <Typography variant="h6" marginTop={2} sx={{ color: '#fff' }}>
-                Current Location: {locationName || 'Loading...'}
-            </Typography>
-
-            <Typography variant="h4" sx={{ color: '#fff', marginTop: 1 }}>My Dashboard</Typography>
-            <Typography variant="h6" sx={{ color: '#ddd' }}>
-                {user ? `${user.f_name} ${user.l_name}` : 'User'}
-            </Typography>
-
-            <Box marginTop={2} width="80%">
-                <Typography variant="h6" sx={{ color: '#fff' }}>Manage Your Services</Typography>
-                {/* Pass providerId to the ServiceTable component */}
-                <ServiceTable
-                    services={services}
-                    selectedServices={selectedServices}
-                    onUpdateServices={setSelectedServices} // Update function as a prop
-                    providerId={user ? user.id : null}  // Pass providerId here
-                />
+        <Box sx={sectionStyle}>
+            {/* Left Sidebar */}
+            <Box sx={{ width: '20%', padding: 2 }}>
+                <List component="nav">
+                    <ListItem button component={Link} to="/profile">
+                        <ListItemText primary="Profile" />
+                    </ListItem>
+                    <ListItem button component={Link} to="/settings">
+                        <ListItemText primary="Settings" />
+                    </ListItem>
+                    <ListItem button component={Link} to="/notifications">
+                        <ListItemText primary="Notifications" />
+                    </ListItem>
+                    <Divider />
+                    <ListItem button component={Link} to="/logout">
+                        <ListItemText primary="Logout" />
+                    </ListItem>
+                </List>
             </Box>
 
-            <Box marginTop={4} width="80%">
-                <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={goToNewPage}
-                    sx={{ marginTop: 2 }}
-                >
-                    My Requests
-                </Button>
+            {/* Main Content Area */}
+            <Box sx={{ flexGrow: 1 }}>
+                {/* Top Bar */}
+                <AppBar position="fixed" sx={{ backgroundColor: '#4267B2', zIndex: 1300 }}>
+                    <Toolbar>
+                        <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 'bold' }}>
+                            Tasky
+                        </Typography>
+                        <Typography variant="h6" sx={{ mr: 2 }}>
+                            My Dashboard
+                        </Typography>
+                        <Button color="inherit" component={Link} to="/about">About Us</Button>
+                        <Button color="inherit" component={Link} to="/login">Login</Button>
+                        <Button color="inherit" component={Link} to="/signup">Sign Up</Button>
+                    </Toolbar>
+                </AppBar>
+
+                {/* Profile and Services Section */}
+                <Container maxWidth="md" sx={{ marginTop: '80px', padding: 2 }}>
+                    <Paper sx={{ padding: 3, backgroundColor: '#fff', borderRadius: 2, boxShadow: 1 }}>
+                        <Typography variant="h6" sx={{ color: '#666', marginBottom: 1 }}>
+                            Current Location: {locationName || 'Loading...'}
+                        </Typography>
+                        <Typography variant="h5" sx={{ color: '#333', fontWeight: 'bold' }}>
+                            {user ? `${user.f_name} ${user.l_name}` : 'User'}
+                        </Typography>
+                        <Divider sx={{ my: 2 }} />
+
+                        {/* Manage Services Section */}
+                        <Typography variant="h6" sx={{ color: '#666', marginBottom: 1 }}>
+                            Manage Your Services
+                        </Typography>
+                        <ServiceTable
+                            services={services}
+                            selectedServices={selectedServices}
+                            onUpdateServices={setSelectedServices}
+                            providerId={user ? user.id : null}
+                        />
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            onClick={goToNewPage}
+                            sx={{ marginTop: 3, backgroundColor: '#4267B2' }}
+                        >
+                            My Requests
+                        </Button>
+                    </Paper>
+                </Container>
             </Box>
         </Box>
     );

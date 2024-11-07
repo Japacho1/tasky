@@ -1,16 +1,18 @@
 import React from "react";
-import { Box, AppBar, Toolbar, Typography, Button, Container, Card, CardContent, CardActions } from "@mui/material";
+import { Box, AppBar, Toolbar, Typography, Button, Container, Card, CardContent } from "@mui/material";
 import { Link } from "react-router-dom";
 import backgroundImage from "./images/duplo24.jpg";
 
 function Home() {
   const sectionStyle = {
     width: '100%',
-    height: '100vh',
+    minHeight: '100vh',  // Ensure the section covers the whole viewport height
     backgroundImage: `url(${backgroundImage})`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     color: '#fff',
+    display: 'flex',
+    flexDirection: 'column',
   };
 
   return (
@@ -24,6 +26,15 @@ function Home() {
           <Button color="inherit" component={Link} to="/about">About Us</Button>
           <Button color="inherit" component={Link} to="/login">Login</Button>
           <Button color="inherit" component={Link} to="/signup">Sign Up</Button>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            component={Link} 
+            to="/signup" 
+            sx={{ marginLeft: 'auto' }}
+          >
+            Get Started
+          </Button>
         </Toolbar>
       </AppBar>
 
@@ -34,12 +45,9 @@ function Home() {
             Welcome to Tasky
           </Typography>
           <Typography variant="h6" color="inherit" paragraph>
-            Tasky is your ultimate task management tool to help you stay organized and achieve more.
-            Manage your tasks efficiently and collaborate with your team in real-time.
+            Tasky is your ultimate task management tool to help you manage your domestic tasks.
+            By enabling you request for services online depending on your location and providers next to you.
           </Typography>
-          <Button variant="contained" size="large" color="primary" sx={{ marginTop: 5 }} component={Link} to="/signup">
-            Get Started
-          </Button>
         </Box>
       </Container>
 
